@@ -9,6 +9,81 @@ current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfra
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
+class Mass_Spring_Damper:
+    """ Specify the input of a mass-spring-damper system
+        """
+    def __init__(self, input_sequence,input_sequence_name):
+        self.u = np.vstack(input_sequence)
+        self.u_name = input_sequence_name
+
+def force_input(experiment_number):
+    mass1 = Mass_Spring_Damper(2*np.cos(4*t_p)+3, '$2cos(4t_p)+3$')
+    # EXPERIMENT 1: PARAMETERS FOR CORRECT CONCLUSION
+    if experiment_number=='1A':
+        mass2 = Mass_Spring_Damper(np.zeros(N), '0')
+        mass3 = Mass_Spring_Damper(np.zeros(N), '0')
+    
+    elif experiment_number=='1B':
+        # experiment 1B
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p+3)+3,'$2cos(4t_p+3)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    elif experiment_number=='1C':
+        # experiment 1C
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p+3)+3,'$2cos(4t_p+3)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    # EXPERIMENT 2: PARAMETERS FOR INCORRECT CONCLUSION
+    elif experiment_number=='2A':
+        # experiment 2A
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p)+3,'$2cos(4t_p)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    elif experiment_number=='2B':
+        # experiment 2B
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p)+3,'$2cos(4t_p)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    elif experiment_number=='2C':
+        # experiment 2C
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p+2)+3,'$2cos(4t_p+2)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    return mass1, mass2, mass3
+
+def folders(experiment_number):
+    '''Define folder to get data from and save data to based on type of test to run (full has 1000 trials, test has 10 trials)'''
+    if experiment_number=='1A' or experiment_number=='1B' or experiment_number=='1C':
+        folder_figures = 'correct-conclusions/figures_em/'
+        while True:
+            try:
+                test_type = input("Enter the type of test you want to run 'full' or 'test':")
+                if test_type== 'full':
+                    trials = 1000
+                    folder = 'correct-conclusions/exp_'
+                    break
+                elif test_type== 'test':
+                    trials = 10
+                    folder = 'test_data/exp_'
+                    break
+            except ValueError: print("Error!")
+    elif experiment_number=='2A' or experiment_number=='2B' or experiment_number=='2C':
+        folder_figures = 'incorrect-conclusions/figures_em/'
+        while True:
+            try:
+                test_type = input("Enter the type of test you want to run 'full' or 'test':")
+                if test_type== 'full':
+                    trials = 1000
+                    folder = 'incorrect-conclusions/exp_'
+                    break
+                elif test_type== 'test':
+                    trials = 10
+                    folder = 'test_data/exp_'
+                    break
+            except ValueError: print("Error!")
+    folder += experiment_number+'/'
+    return folder, folder_figures, trials
+
 def e_step(pi_k, mu_k, sigma_k, x_i):
     """The expectation step: compute the probability each data point is a result of cluster k, P(k|xi)"""
     # find the likelihood P(x_i|k), dim: Kxn
@@ -17,19 +92,19 @@ def e_step(pi_k, mu_k, sigma_k, x_i):
     
     # find the marginal likelihood P(x_i), dim: nx
     r_evidence = (np.sum(pi_k * N_k,axis=0))
-
+    
     # find the posterior P(k|xi) or responsibility
     r_ik = [pi_k[k,:] * N_k[k,:] / r_evidence for k in range(len(mu_k))]
     r_ik = np.array(r_ik).T
     '''
-    N_k = np.zeros((x.shape[1],pi_k.shape[0],x.shape[0]))   # dim: n x K x N
-    L_k = np.zeros((x.shape[1],x.shape[0]))                 # dim: n x N
-    r_k = np.zeros((x.shape[0],x.shape[1],pi_k.shape[0]))   # dim: N x n x K
-    for j in range(x.shape[1]):
+        N_k = np.zeros((x.shape[1],pi_k.shape[0],x.shape[0]))   # dim: n x K x N
+        L_k = np.zeros((x.shape[1],x.shape[0]))                 # dim: n x N
+        r_k = np.zeros((x.shape[0],x.shape[1],pi_k.shape[0]))   # dim: N x n x K
+        for j in range(x.shape[1]):
         N_k[j,:,:] = stats.norm(loc=mu_k,scale=sigma_k).pdf(x[:,j])
         L_k[j,:] = np.dot(pi_k[:,[j]].T,N_k[j,:,:])
         r_k[:,j,:] = np.array([pi_k[k,j] * N_k[j,k,:] / L_k[j,:] for k in range(len(mu_k))]).T
-    '''
+        '''
     return r_ik
 
 def m_step(r_ik, x):
@@ -47,7 +122,7 @@ def m_step(r_ik, x):
     # enforce prior on agent
     pi_k[0,:] = pi_k[0,:]/Nk[0]
     pi_k[1,:] = 1-pi_k[0,:]
-
+    
     return mu_k, sigma_k, pi_k
 
 def log_likelihood(pi_k, mu_k, sigma_k, x):
@@ -62,48 +137,27 @@ def log_likelihood(pi_k, mu_k, sigma_k, x):
     L_tot = np.sum(np.log(L_k))
     return L_tot
 
-#--import variables from variables scripts:
-''' Parameters for each mass:
-        x0                  - initial conditions for Euler integration of x
-        n_m                 - number of mass
-        experiment_number   - number of the performed experiment (1A,1B,etc.)
-        state space system (i.e. dx = Ax+Bu+w, y = Cx+z)
-            self.A      - state matrix
-            self.B      - input matrix
-            self.C      - output matrix
-            self.u      - input sequence (applied force)
-            self.w      - state noise
-            self.z      - measurement noise
-    '''
-from mass_param import n_m,experiment_number,mass1,mass2,mass3
 ''' Time parameters:
-        trials      - number of trials of the experiment
-        h           - [s] the sampling period
-        T           - [s] total time
-        N           - [] total number of simulation steps
-        t_p         - [s] time points
-        delta_N     - [] number of steps for time window
-        steps       - [] range of simulation steps
+    trials      - number of trials of the experiment
+    h           - [s] the sampling period
+    T           - [s] total time
+    N           - [] total number of simulation steps
+    t_p         - [s] time points
+    delta_N     - [] number of steps for time window
+    steps       - [] range of simulation steps
     '''
-from time_param import trials,h,T,N,t_p,delta_N,steps
+from time_param import h,T,N,t_p,delta_N,steps
 
-
-test_type = input("Enter the type of test you want to run 'full' or 'test':")
-if experiment_number=='1A' or experiment_number=='1B' or experiment_number=='1C':
-    if test_type== 'full': folder = 'correct-conclusions/exp_'
-    elif test_type== 'test':
-        trials = 10
-        folder = 'test_data/exp_'
-    else: print('Incorrect test type!')
-    folder_figures = 'correct-conclusions/figures_em/'
-elif experiment_number=='2A' or experiment_number=='2B' or experiment_number=='2C':
-    if test_type== 'full': folder = 'incorrect-conclusions/exp_'
-    elif test_type== 'test':
-        trials = 10
-        folder = 'test_data/exp_'
-    else: print('Incorrect test type!')
-    folder_figures = 'incorrect-conclusions/figures_em/'
-folder += experiment_number+'/'
+n_m = 3
+print('Choose the parameters of the state-space, where experiment 1 makes a data that should lead to correct conclusions and experiment 2 makes a data that should lead to incorrect conclusions.')
+while True:
+    try:
+        experiment_number = input("Enter the number of the experiment (1A, 1B, 1C, 2A, 2B or 2C) and press enter:")
+        mass1, mass2, mass3 = force_input(experiment_number)
+        break
+    except ValueError:
+        print("Error!")
+folder, folder_figures, trials = folders(experiment_number)
 print('\nGetting data from folder:', folder)
 
 #-- import state space and data
@@ -160,37 +214,37 @@ for t in range(3):
             delta_N = i
         # find the log-likelihood
         ll_new = log_likelihood(pi, mu, sigma, B_i[i-delta_N:i+1,:,t])
-
+        
         # run EM until convergence
         for it in range(max_iter):
             ll_old = ll_new
-
+            
             # E: expectation step
             r_i[i,:,:,t] = e_step(pi, mu, sigma, B_i[i,:,t])
-
+            
             # M: maximization step
             mu, sigma_temp, pi = m_step(r_i[i-delta_N:i+1,:,:,t], B_i[i-delta_N:i+1,:,t])
-
+            
             # only calculate the standard dev. when enough time steps passed
             if i>10:
                 sigma = sigma_temp
-
+            
             # check exit condition
             ll_new = log_likelihood(pi, mu, sigma, B_i[i-delta_N:i+1,:,t])
             diff_ll = abs(ll_old-ll_new)
             #print('\titeration:',it,'w log-likelihood difference:',abs(ll_old-ll_new))
             if (diff_ll<tol) or np.isnan(diff_ll)==True:
                 break
-
+        
         # estimate B_hat using agency mu and pi
         B_hat[i,:,t] = r_i[i,:,0,t]*mu[0]
-
+        
         # save mean at each time step as b value of agency and no-agency (env)
         agency[i,t] = mu[0]
         env[i,t] = mu[1]
-        t_agency_1trial += h*pi[0,:]
-        
-    print('Time agency after trial',t,':',t_agency_1trial)
+                    t_agency_1trial += h*pi[0,:]
+
+                        print('Time agency after trial',t,':',t_agency_1trial)
 
 # save data for comparison of prior and no_prior case
 B_hat_mean = np.mean(B_hat,axis=(0,2))
@@ -293,7 +347,7 @@ for i in range(0,n_m):
     #plt.scatter(t_p, ols_B_hat[:,2*i+1,trial], color='C1',s=5,label='LSQ $\hatb_{%s}[i]$'%(2*i+2))
     plt.scatter(t_p, B_hat[:,2*i,trial], color='C3',s=10, label='EM $\hatb_{i%s}$'%(2*i+1))
     plt.scatter(t_p, B_hat[:,2*i+1,trial], color='C2',s=10, label='EM $\hatb_{i%s}$'%(2*i+2))
-
+    
     # Position legend
     box = ax1.get_position()
     ax1.set_position([box.x0-box.width * 0.07, box.y0, box.width * 0.9, box.height]) # move box to left by 5% and shrink current axis by 10% (i.e. center box)

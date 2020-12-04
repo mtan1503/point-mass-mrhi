@@ -155,7 +155,7 @@ def log_likelihood(pi_k, mu_k, cov_k, x):
     N_k = np.zeros(shape=(mu_k.shape[0],x.shape[0]))
     for k in range(mu_k.shape[0]):
         N_k[k,:] = stats.multivariate_normal.pdf(x,mean=mu_k[k,:],cov=cov_k[k,:])
-
+    
     # calculate the log-likelihood
     L_tot = np.sum(np.log(np.sum(pi_k * N_k,axis=0)))
 
@@ -206,12 +206,12 @@ ols_B_hat = np.loadtxt(folder+'B_hat_ols_noprior.txt').reshape(N, 2*n_m, trials)
 
 #--Set initial conditions
 n_n = n_m*2             # number of states
-n_k = int((n_n/2)+2)    # number of clusters
+n_k = int((n_n/2)+1)    # number of clusters
 n_x = 2                 # number of dimensions
 # mean, mu
 mu = np.zeros((n_k,n_x))
-mu[:,0] = [0.5,0.0,0.5,0.5,0.5]         # k means for b_{ij}
-mu[:,1] = [0.1,0.0,1.0,1.5,0.5]         # k means for error in dx
+mu[:,0] = [1.0,0.0,0.5,0.5]         # k means for b_{ij}
+mu[:,1] = [0.1,0.0,1.0,1.5]         # k means for error in dx
 mu_init = mu
 # covariance matrix (C_{i,j} = sigma(x_i,x_j))
 cov = np.zeros((n_k,n_x,n_x))                       # cov. matrices for each cluster
@@ -219,15 +219,15 @@ cov[0,:,:] = [[10**(-3), 0], [0, 10**(-3)]]         # cov. matrix agency
 cov[1,:,:] = [[10**(-3), 0], [0, 10**(-3)]]         # cov. matrix no-agency (static)
 cov[2,:,:] = [[10**(-1), 0], [0, 10**(-2)]]         # cov. matrix no-agency (dynamic)
 cov[3,:,:] = [[10**(-1), 0], [0, 10**(-2)]]         # cov. matrix no-agency (dynamic)
-cov[4,:,:] = [[10**(-1), 0], [0, 10**(-2)]]         # cov. matrix no-agency (dynamic)
+#cov[4,:,:] = [[10**(-1), 0], [0, 10**(-2)]]         # cov. matrix no-agency (dynamic)
 cov_init = cov
 # mixture proportions of the clusters (i.e. the prior), pi
 pi = np.zeros((n_k,n_n))
 pi[0,:] = 1/6         # prior of agent
 pi[1,:] = 2/6         # prior of static env.
-pi[2,:] = 1/6         # prior of dynamic env.
+pi[2,:] = 2/6         # prior of dynamic env.
 pi[3,:] = 1/6         # prior of dynamic env.
-pi[4,:] = 1/6         # prior of dynamic env.
+#pi[4,:] = 1/6         # prior of dynamic env.
 #pi[:,1] = [1,0,0,0,0]
 pi_init = pi
 
@@ -263,7 +263,7 @@ tol = 0.001
 steps_window = delta_N
 
 #--Perform EM for each trial
-for t in range(trials):
+for t in range(4):
     #print('Trial:',t)
     # reset initial conditions for each trial
     mu = mu_init
@@ -460,13 +460,13 @@ fig2.set_rasterized(True)
 plt.savefig(folder_figures+'exp'+experiment_number+'_agent_b.eps', format='eps')
 
 #--FIGURE 3: Plot contours of clusters after EM
-x1 = np.linspace(-1,2,1500)
-x2 = np.linspace(-1.5,1.5,1500)
+x1 = np.linspace(-1,2.5,2000)
+x2 = np.linspace(-1,2,1500)
 X, Y = np.meshgrid(x1,x2)
 pos = np.empty(X.shape + (2,)) # a new array of given shape and type, without initializing entries
 pos[:, :, 0] = X; pos[:, :, 1] = Y
 
-fig3,ax = plt.subplots(figsize=(7.5, 5))
+fig3,ax = plt.subplots(figsize=(7, 6))
 plt.subplots_adjust(top=0.94,right=0.96,left=0.125,bottom=0.12) # spacing
 plt.title('Clusters after point mass mRHI at $T=20$s')
 # plot B estimates
@@ -475,7 +475,7 @@ CS = dict()
 SC = dict()
 lines = []
 labels = clusters
-color_k = ['C2','C1','C3','C4','C6']
+color_k = ['C2','C1','C8','C6','C9']
 color_k[0] = color_k[i_agent]
 color_k[i_agent] = 'C2'
 
@@ -484,41 +484,48 @@ for i in range(0,2*n_m):
     lines.append(SC[i])
 for i in range(0,n_k):
     Z[i] = stats.multivariate_normal(mu[i,:], cov[i,:,:])
-    CS[i] = plt.contour(X, Y, Z[i].pdf(pos), colors=color_k[i], alpha=0.8)
+    CS[i] = plt.contour(X, Y, Z[i].pdf(pos), levels=5, colors=color_k[i], alpha=0.8)
     lines.append(CS[i].collections[-1])
-
-plt.legend(lines,labels,loc='center left')
 plt.xlabel('$b_{ij}$')
 plt.ylabel('$\epsilon_{\dot{x}_{ij}}$')
 plt.xlim(np.min(data[N_t-delta_N:N_t,:,0])-0.2,np.max(data[N_t-delta_N:N_t,:,0])+0.05)
-plt.ylim(np.min(data[N_t-delta_N:N_t,:,1])-0.1,np.max(data[N_t-delta_N:N_t,:,1])+0.1)
+plt.ylim(np.min(data[N_t-delta_N:N_t,:,1])-0.1,np.max(data[N_t-delta_N:N_t,:,1])+0.5)
+box = ax.get_position()
+ax.set_position([box.x0, box.y0 + box.height * 0.2,
+                 box.width, box.height * 0.8])    # set box pos.
+ax.legend(lines,clusters_init,loc='lower center', ncol=4, bbox_to_anchor=(0.45, -0.425))    # put a legend to the right of the current axis
+
+
 fig3.set_rasterized(True)
 plt.savefig(folder_figures+'exp'+experiment_number+'_agent_k_after.eps', format='eps')
 
 #--FIGURE 4: Plot of contours of clusters before EM
-fig4, ax = plt.subplots(figsize=(7.5, 5))
+fig4, ax = plt.subplots(figsize=(7, 6))
 plt.subplots_adjust(top=0.94,right=0.96,left=0.125,bottom=0.12) # spacing
 plt.title('Clusters before point mass mRHI at $T=0$s')
-color_init = ['C2','C1','C3','C4','C6']
+color_init = ['C2','C1','C8','C6','C9']
 lines = []
 for i in range(0,2*n_m):
     SC[i] = plt.scatter(data[0:delta_N,i,0],data[0:delta_N,i,1],c=color_b[i],s=10)
     lines.append(SC[i])
 for i in range(0,n_k):
     Z[i] = stats.multivariate_normal(mu_init[i,:], cov_init[i,:])
-    CS[i] = plt.contour(X, Y, Z[i].pdf(pos), colors=color_init[i], alpha=0.8)
+    CS[i] = plt.contour(X, Y, Z[i].pdf(pos), levels=5, colors=color_init[i], alpha=0.8)
     lines.append(CS[i].collections[0])
 plt.xlabel('$b_{ij}$')
 plt.ylabel('$\epsilon_{\dot{x}_{ij}}$')
 plt.xlim(np.min(data[0:delta_N,:,0])-0.05,np.max(data[0:delta_N,:,0])+0.3)
-plt.ylim(np.min(data[0:delta_N,:,1])-0.1,np.max(data[0:delta_N,:,1])+0.1)
-plt.legend(lines,clusters_init,loc='lower right')
+plt.ylim(np.min(data[0:delta_N,:,1])-0.1,2)
+box = ax.get_position()
+ax.set_position([box.x0, box.y0 + box.height * 0.2,
+                 box.width, box.height * 0.8])   # set box pos.
+ax.legend(lines,clusters_init,loc='lower center', ncol=4, bbox_to_anchor=(0.45, -0.425))    # put a legend to the right of the current axis
 
 fig4.set_rasterized(True)
 plt.savefig(folder_figures+'exp'+experiment_number+'_agent_k_before.eps', format='eps')
 
 #--FIGURE 5: Plot the agent's sense of agency
-fig5, ax = plt.subplots(figsize=(8, 4))
+fig5, ax = plt.subplots(figsize=(7, 4))
 plt.subplots_adjust(top=0.9,left=0.15,right=0.8,bottom=0.14) # spacing
 plt.title('The agent\'s SoA ($Z_{ij}=%s$) over time for trial %s'%(i_agent,trial))
 plt.ylabel('$r_i(Z_{ij}=%s)$'%(i_agent))
@@ -644,7 +651,7 @@ print('\nPERCENTAGE TIME')
 print('\tof agency per state:',100*(t_agency/(T*trials)),'%')
 
 
-#plt.show() # uncomment if you want to plot
+plt.show() # uncomment if you want to plot
 
 
 

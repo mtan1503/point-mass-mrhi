@@ -11,6 +11,81 @@ current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfra
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
+class Mass_Spring_Damper:
+    """ Specify the input of a mass-spring-damper system
+        """
+    def __init__(self, input_sequence,input_sequence_name):
+        self.u = np.vstack(input_sequence)
+        self.u_name = input_sequence_name
+
+def force_input(experiment_number):
+    mass1 = Mass_Spring_Damper(2*np.cos(4*t_p)+3, '$2cos(4t_p)+3$')
+    # EXPERIMENT 1: PARAMETERS FOR CORRECT CONCLUSION
+    if experiment_number=='1A':
+        mass2 = Mass_Spring_Damper(np.zeros(N), '0')
+        mass3 = Mass_Spring_Damper(np.zeros(N), '0')
+    
+    elif experiment_number=='1B':
+        # experiment 1B
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p+3)+3,'$2cos(4t_p+3)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    elif experiment_number=='1C':
+        # experiment 1C
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p+3)+3,'$2cos(4t_p+3)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    # EXPERIMENT 2: PARAMETERS FOR INCORRECT CONCLUSION
+    elif experiment_number=='2A':
+        # experiment 2A
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p)+3,'$2cos(4t_p)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    elif experiment_number=='2B':
+        # experiment 2B
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p)+3,'$2cos(4t_p)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    elif experiment_number=='2C':
+        # experiment 2C
+        mass2 = Mass_Spring_Damper(2*np.cos(4*t_p+2)+3,'$2cos(4t_p+2)+3$')
+        mass3 = Mass_Spring_Damper(np.sin(2*t_p),'$sin(2t_p)$')
+    
+    return mass1, mass2, mass3
+
+def folders(experiment_number):
+    '''Define folder to get data from and save data to based on type of test to run (full has 1000 trials, test has 10 trials)'''
+    if experiment_number=='1A' or experiment_number=='1B' or experiment_number=='1C':
+        folder_figures = 'correct-conclusions/figures_em/'
+        while True:
+            try:
+                test_type = input("Enter the type of test you want to run 'full' or 'test':")
+                if test_type== 'full':
+                    trials = 1000
+                    folder = 'correct-conclusions/exp_'
+                    break
+                elif test_type== 'test':
+                    trials = 10
+                    folder = 'test_data/exp_'
+                    break
+            except ValueError: print("Error!")
+    elif experiment_number=='2A' or experiment_number=='2B' or experiment_number=='2C':
+        folder_figures = 'incorrect-conclusions/figures_em/'
+        while True:
+            try:
+                test_type = input("Enter the type of test you want to run 'full' or 'test':")
+                if test_type== 'full':
+                    trials = 1000
+                    folder = 'incorrect-conclusions/exp_'
+                    break
+                elif test_type== 'test':
+                    trials = 10
+                    folder = 'test_data/exp_'
+                    break
+            except ValueError: print("Error!")
+    folder += experiment_number+'/'
+    return folder, folder_figures, trials
+
 def e_step(pi_k, mu_k, cov_k, x_i):
     """The expectation step: compute the probability each data point is a result of cluster k, P(k|xi)"""
     
@@ -22,7 +97,7 @@ def e_step(pi_k, mu_k, cov_k, x_i):
     
     # find the marginal likelihood P(x_i), dim: n
     r_evidence = (np.sum(pi_k * N_k,axis=0))
-
+    
     # find the posterior P(k|xi) or responsibility, dim:Kxn
     r_ik = [(pi_k[k,:] * N_k[k,:]) / r_evidence for k in range(mu_k.shape[0])]
     r_ik = np.array(r_ik)
@@ -64,71 +139,54 @@ def m_step(r_ik, x, i_agent, i_env):
 def log_likelihood(pi_k, mu_k, cov_k, x):
     '''The log-likelihood'''
     '''
-    # calculate the likelihood for entire time window
-    N_k = np.zeros((x.shape[1],mu_k.shape[0],x.shape[0]))   # dim: n x K x N
-    L_k = np.zeros((x.shape[1],x.shape[0]))                 # dim: n x N
-    for j in range(x.shape[1]):
+        # calculate the likelihood for entire time window
+        N_k = np.zeros((x.shape[1],mu_k.shape[0],x.shape[0]))   # dim: n x K x N
+        L_k = np.zeros((x.shape[1],x.shape[0]))                 # dim: n x N
+        for j in range(x.shape[1]):
         for k in range(mu_k.shape[0]):
-            N_k[j,k,:] = stats.multivariate_normal.pdf(x[:,j],mean=mu_k[k,:],cov=cov_k[k,:])
+        N_k[j,k,:] = stats.multivariate_normal.pdf(x[:,j],mean=mu_k[k,:],cov=cov_k[k,:])
         L_k[j,:] = np.dot(pi_k[:,[j]].T,N_k[j,:,:])
-    if np.any(N_k==0): N_k[np.where(N_k==0)]=1e-6
-    
-    # calculate the log-likelihood
-    L_tot = np.sum(np.log(L_k))
-    '''
+        if np.any(N_k==0): N_k[np.where(N_k==0)]=1e-6
+        
+        # calculate the log-likelihood
+        L_tot = np.sum(np.log(L_k))
+        '''
     # calculate the likelihood for one data point
     N_k = np.zeros(shape=(mu_k.shape[0],x.shape[0]))
     for k in range(mu_k.shape[0]):
         N_k[k,:] = stats.multivariate_normal.pdf(x,mean=mu_k[k,:],cov=cov_k[k,:])
-    
+
     # calculate the log-likelihood
     L_tot = np.sum(np.log(np.sum(pi_k * N_k,axis=0)))
 
-    return L_tot
+return L_tot
 
 #--import variables from variables scripts:
 ''' Parameters for each mass:
-        x0                  - initial conditions for Euler integration of x
-        n_m                 - number of mass
-        experiment_number   - number of the performed experiment (1A,1B,etc.)
-        state space system (i.e. dx = Ax+Bu+w, y = Cx+z)
-            self.A      - state matrix
-            self.B      - input matrix
-            self.C      - output matrix
-            self.u      - input sequence (applied force)
-            self.w      - state noise
-            self.z      - measurement noise
+    x0                  - initial conditions for Euler integration of x
+    n_m                 - number of mass
+    experiment_number   - number of the performed experiment (1A,1B,etc.)
+    state space system (i.e. dx = Ax+Bu+w, y = Cx+z)
+    self.A      - state matrix
+    self.B      - input matrix
+    self.C      - output matrix
+    self.u      - input sequence (applied force)
+    self.w      - state noise
+    self.z      - measurement noise
     '''
-from mass_param import n_m,experiment_number,mass1,mass2,mass3
-''' Time parameters:
-        trials      - number of trials of the experiment
-        h           - [s] the sampling period
-        T           - [s] total time
-        N           - [] total number of simulation steps
-        t_p         - [s] time points
-        delta_N     - [] number of steps for time window
-        steps       - [] range of simulation steps
-    '''
-from time_param import trials,h,T,N,t_p,delta_N,steps,N_t
+from time_param import h,T,N,t_p,delta_N,steps,N_t
 
-test_type = input("Enter the type of test you want to run 'full' or 'test':")
-if experiment_number=='1A' or experiment_number=='1B' or experiment_number=='1C':
-    if test_type== 'full': folder = 'correct-conclusions/exp_'
-    elif test_type== 'test':
-        trials = 10
-        folder = 'test_data/exp_'
-    else: print('Incorrect test type!')
-    folder_figures = 'correct-conclusions/figures_em/'
-elif experiment_number=='2A' or experiment_number=='2B' or experiment_number=='2C':
-    if test_type== 'full': folder = 'incorrect-conclusions/exp_'
-    elif test_type== 'test':
-        trials = 10
-        folder = 'test_data/exp_'
-    else: print('Incorrect test type!')
-    folder_figures = 'incorrect-conclusions/figures_em/'
-folder += experiment_number+'/'
+n_m = 3
+print('Choose the parameters of the state-space, where experiment 1 makes a data that should lead to correct conclusions and experiment 2 makes a data that should lead to incorrect conclusions.')
+while True:
+    try:
+        experiment_number = input("Enter the number of the experiment (1A, 1B, 1C, 2A, 2B or 2C) and press enter:")
+        mass1, mass2, mass3 = force_input(experiment_number)
+        break
+    except ValueError:
+        print("Error!")
+folder, folder_figures, trials = folders(experiment_number)
 print('\nGetting data from folder:', folder)
-
 
 #-- import state space and data
 A = np.loadtxt(folder+'A_matrix.txt')
@@ -221,7 +279,7 @@ for t in range(trials):
         delta_N = steps_window
         if i-delta_N<0:
             delta_N = i
-
+    
         # determine prediction error for states and observations
         eps_dx[i,:,t] = (np.abs(dx_hat[i-delta_N:i+1,:,t]-dx[i-delta_N:i+1,:,t])).mean(axis=0)
         #eps_y[i,:,t] = (np.abs(y_hat[i-delta_N:i+1,:,t]-y[i-delta_N:i+1,:,t])).mean(axis=0)
@@ -229,10 +287,10 @@ for t in range(trials):
         # save the data at this time step in data (i.e. X)
         data[i,:,0] = B_i[i,:,t]
         data[i,:,1] = eps_dx[i,:,t]
-
+        
         # calculate the log-likelihood
         ll_new = log_likelihood(pi, mu, cov, data[i,:,:])
-
+        
         # run EM until convergence or max number of iterations
         for j in range(max_iter):
             ll_old = ll_new
@@ -241,10 +299,10 @@ for t in range(trials):
             r_i[:,i,:,t] = e_step(pi, mu, cov, data[i,:,:])
             # M: maximization step
             mu, cov_temp, pi = m_step(r_i[:,i-delta_N:i+1,:,t], data[i-delta_N:i+1,:,:],i_agent,i_env)
-
+            
             # calculate the covariance and mixtures when there are enough data points (enforce initial conditions for some time steps)
             if i>10: cov = cov_temp
-
+            
             # check exit condition
             ll_new = log_likelihood(pi, mu, cov, data[i,:,:])
             diff_ll = abs(ll_old-ll_new)
@@ -270,28 +328,28 @@ for t in range(trials):
                 i_agent = i_k[mask]     # remove max error from agency k
             i_agent = i_agent[0]        # choose integer
             i_env = i_k[~mask]          # no-agency clusters are opposite of agency cluster
-                
-        # agency parameter, B_hat, with mu and r_i for x_hat and dx_hat
-        B_hat[i,:,t] = np.dot(pi[[i_agent],:].T,mu[i_agent,[0]])
 
-        # prediction of next step with forward euler (except for last loop)
-        if i!=(N-1):
-            Bd = h*B_hat[i,:,t]
-            x_hat[i+1,:,t] = Ad.dot(x[i,:,t]) + Bd*mass1.u[i,0]
-            dx_hat[i+1,:,t] = A.dot(x_hat[i+1,:,t]) + B_hat[i,:,t].dot(mass1.u[i+1,0])
-        #agent_dx[i+1,:,:] = B_hat[i,:,t].dot(mass1.u[i+1,0])
-        #spring_dx[i,:,:] = dx[i,:,:] - A.dot(x[i,:,:])
-
-        # store the agency data for each time step
-        t_agency += h*r_i[i_agent,i,:,t]     # time that SoA
-        t_agent_1trial += h*r_i[i_agent,i,:,t]
-        mu_agency[i,:,t] = mu[i_agent,:]
-        cov_agency[i,t] = cov[i_agent,0,0]
-        pi_agency[i,:,t] = pi[i_agent,:]
-        soa[i,:,t] = r_i[i_agent,i,:,t]
-        i_agency[i,:,t] = i_agent
-        eps_dx_agency += np.sum(np.abs(eps_dx[i,i_agent,t]))
-
+                # agency parameter, B_hat, with mu and r_i for x_hat and dx_hat
+                B_hat[i,:,t] = np.dot(pi[[i_agent],:].T,mu[i_agent,[0]])
+            
+                # prediction of next step with forward euler (except for last loop)
+                if i!=(N-1):
+Bd = h*B_hat[i,:,t]
+x_hat[i+1,:,t] = Ad.dot(x[i,:,t]) + Bd*mass1.u[i,0]
+dx_hat[i+1,:,t] = A.dot(x_hat[i+1,:,t]) + B_hat[i,:,t].dot(mass1.u[i+1,0])
+    #agent_dx[i+1,:,:] = B_hat[i,:,t].dot(mass1.u[i+1,0])
+    #spring_dx[i,:,:] = dx[i,:,:] - A.dot(x[i,:,:])
+    
+    # store the agency data for each time step
+    t_agency += h*r_i[i_agent,i,:,t]     # time that SoA
+    t_agent_1trial += h*r_i[i_agent,i,:,t]
+    mu_agency[i,:,t] = mu[i_agent,:]
+    cov_agency[i,t] = cov[i_agent,0,0]
+    pi_agency[i,:,t] = pi[i_agent,:]
+    soa[i,:,t] = r_i[i_agent,i,:,t]
+    i_agency[i,:,t] = i_agent
+    eps_dx_agency += np.sum(np.abs(eps_dx[i,i_agent,t]))
+    
     print('Time agent after trial',t,':',t_agent_1trial)
 
 #--SAVE DATA FOR COMPARISON
@@ -309,14 +367,14 @@ np.savetxt(folder+'data_em-2_'+experiment_number+'.txt',(mu_agency_mean,cov_agen
 
 #-- SAVE VALUES FOR ANIMATION
 '''
-np.savetxt(folder+'em_predictions/em_B_hat.txt',B_hat[:,:,0])
-np.savetxt(folder+'em_predictions/em_dx_hat.txt',dx_hat[:,:,0])
-np.savetxt(folder+'em_predictions/em_x_hat.txt',x_hat[:,:,0])
-np.savetxt(folder+'em_predictions/em_rik_agent.txt', r_i[i_agent,:,:]*100, fmt='%1.2f')
-np.savetxt(folder+'em_predictions/em_pi_agency.txt', pi_agency, fmt='%1.2f')
-np.savetxt(folder+'em_predictions/em_dx_agent.txt',agent_dx[:,:,0])
-np.savetxt(folder+'em_predictions/em_dx_spring.txt',spring_dx[:,:,0])
-'''
+    np.savetxt(folder+'em_predictions/em_B_hat.txt',B_hat[:,:,0])
+    np.savetxt(folder+'em_predictions/em_dx_hat.txt',dx_hat[:,:,0])
+    np.savetxt(folder+'em_predictions/em_x_hat.txt',x_hat[:,:,0])
+    np.savetxt(folder+'em_predictions/em_rik_agent.txt', r_i[i_agent,:,:]*100, fmt='%1.2f')
+    np.savetxt(folder+'em_predictions/em_pi_agency.txt', pi_agency, fmt='%1.2f')
+    np.savetxt(folder+'em_predictions/em_dx_agent.txt',agent_dx[:,:,0])
+    np.savetxt(folder+'em_predictions/em_dx_spring.txt',spring_dx[:,:,0])
+    '''
 #--PLOT
 print('Saving figures to:',folder_figures)
 # ajdust cluster names according to actual nr of cluster
@@ -393,7 +451,7 @@ for i in range(0,n_m):
     # plot EM estimated B_hat
     plt.scatter(t_p, B_hat[:,2*i,trial], s=4, color=color_b[2*i], label='$\hatb_{i%s}$ (EM)'%(2*i))
     plt.scatter(t_p, B_hat[:,2*i+1,trial], s=4, color=color_b[2*i+1], label='$\hatb_{i%s}$ (EM)'%(2*i+1))
-
+    
     # Position legend
     box = ax1.get_position()
     ax1.set_position([box.x0-box.width * 0.07, box.y0, box.width * 0.9, box.height]) # move box to left by 5% and shrink current axis by 10% (i.e. center box)

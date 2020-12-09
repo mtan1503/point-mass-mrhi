@@ -5,6 +5,7 @@
     '''
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 def backw_eul(A,B,C,x0,h,N_t,u):
     ''' Backward euler i.e. dx = (x_k - x_(k-1))/h
@@ -165,9 +166,16 @@ if experiment_number=='1A' or experiment_number=='1B' or experiment_number=='1C'
     folder = 'correct-conclusions/exp_'
 elif experiment_number=='2A' or experiment_number=='2B' or experiment_number=='2C':
     folder = 'incorrect-conclusions/exp_'
+folder += experiment_number
+try:
+    print('\nTrying to make directory',folder)
+    os.getcwd()
+    os.makedirs(folder)
+except OSError as error:
+    print(error)
+folder += '/'
 
-folder += experiment_number+'/'
-print('Saving data in folder:', folder)
+print('\nSaving data in folder:', folder)
 # incremental B values
 np.savetxt(folder+'B_i.txt',B_i.reshape(-1,dx.shape[2]))
 # true matrices

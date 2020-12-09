@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-'''from simulation_3-mass folder run: ./em-algorithm/agent_em-static.py'''
+'''from the point-mass-mrhi folder run: ./em-algorithm/agent_em-static.py
+    This file runs the EM algorithm in the static environment suitable for experiment 1A.
+    '''
 from scipy import stats
-#from sklearn.mixture import GaussianMixture
 import numpy as np
 import matplotlib.pyplot as plt
 import os,sys,inspect
@@ -55,56 +56,24 @@ def folders(experiment_number):
     '''Define folder to get data from and save data to based on type of test to run (full has 1000 trials, test has 10 trials)'''
     if experiment_number=='1A' or experiment_number=='1B' or experiment_number=='1C':
         folder_figures = 'correct-conclusions/figures_em/'
-        while True:
-            try:
-                test_type = input("Enter the type of test you want to run 'full' or 'test':")
-                if test_type== 'full':
-                    trials = 1000
-                    folder = 'correct-conclusions/exp_'
-                    break
-                elif test_type== 'test':
-                    trials = 10
-                    folder = 'test_data/exp_'
-                    break
-            except ValueError: print("Error!")
+        folder = 'correct-conclusions/exp_'
     elif experiment_number=='2A' or experiment_number=='2B' or experiment_number=='2C':
         folder_figures = 'incorrect-conclusions/figures_em/'
-        while True:
-            try:
-                test_type = input("Enter the type of test you want to run 'full' or 'test':")
-                if test_type== 'full':
-                    trials = 1000
-                    folder = 'incorrect-conclusions/exp_'
-                    break
-                elif test_type== 'test':
-                    trials = 10
-                    folder = 'test_data/exp_'
-                    break
-            except ValueError: print("Error!")
+        folder = 'incorrect-conclusions/exp_'
     folder += experiment_number+'/'
-    return folder, folder_figures, trials
+
+    return folder, folder_figures
 
 def e_step(pi_k, mu_k, sigma_k, x_i):
     """The expectation step: compute the probability each data point is a result of cluster k, P(k|xi)"""
     # find the likelihood P(x_i|k), dim: Kxn
     N_k = stats.norm(loc=mu_k,scale=sigma_k).pdf(x_i)
-    #N_k[:,np.where(np.sum(N_k,axis=0)==0)]=0.001    # if 0 then set to 0.001 to avoid divide by zero
-    
     # find the marginal likelihood P(x_i), dim: nx
     r_evidence = (np.sum(pi_k * N_k,axis=0))
-    
     # find the posterior P(k|xi) or responsibility
     r_ik = [pi_k[k,:] * N_k[k,:] / r_evidence for k in range(len(mu_k))]
     r_ik = np.array(r_ik).T
-    '''
-        N_k = np.zeros((x.shape[1],pi_k.shape[0],x.shape[0]))   # dim: n x K x N
-        L_k = np.zeros((x.shape[1],x.shape[0]))                 # dim: n x N
-        r_k = np.zeros((x.shape[0],x.shape[1],pi_k.shape[0]))   # dim: N x n x K
-        for j in range(x.shape[1]):
-        N_k[j,:,:] = stats.norm(loc=mu_k,scale=sigma_k).pdf(x[:,j])
-        L_k[j,:] = np.dot(pi_k[:,[j]].T,N_k[j,:,:])
-        r_k[:,j,:] = np.array([pi_k[k,j] * N_k[j,k,:] / L_k[j,:] for k in range(len(mu_k))]).T
-        '''
+
     return r_ik
 
 def m_step(r_ik, x):
@@ -146,7 +115,7 @@ def log_likelihood(pi_k, mu_k, sigma_k, x):
     delta_N     - [] number of steps for time window
     steps       - [] range of simulation steps
     '''
-from time_param import h,T,N,t_p,delta_N,steps
+from time_param import h,T,N,t_p,delta_N,steps,trials
 
 n_m = 3
 print('Choose the parameters of the state-space, where experiment 1 makes a data that should lead to correct conclusions and experiment 2 makes a data that should lead to incorrect conclusions.')
@@ -157,7 +126,7 @@ while True:
         break
     except ValueError:
         print("Error!")
-folder, folder_figures, trials = folders(experiment_number)
+folder, folder_figures = folders(experiment_number)
 print('\nGetting data from folder:', folder)
 
 #-- import state space and data
@@ -168,7 +137,7 @@ C = np.loadtxt(folder+'C_matrix.txt')
 # import B_i
 B_i = np.loadtxt(folder+'B_i.txt').reshape(N, 2*n_m, trials)
 # import B_hat from OLS
-#ols_B_hat = np.loadtxt(folder+'B_hat_ols.txt').reshape(N, 2*n_m, trials)
+ols_B_hat = np.loadtxt(folder+'B_hat_ols.txt').reshape(N, 2*n_m, trials)
 
 #--Set initial conditions
 n_n = n_m*2                     # number of states
@@ -197,9 +166,9 @@ max_iter = 5    # maximum number of iteration steps allowed
 tol = 0.001     # difference in the log-likelihood
 steps_window = delta_N
 
+print('\nStarting EM algorithm')
 # perform EM for each trial step
-for t in range(3):
-    #print('Trial:',t)
+for t in range(trials):
     # reset initial conditions for each trial
     mu = mu_init
     sigma = sigma_init
@@ -207,7 +176,6 @@ for t in range(3):
     t_agency_1trial = np.zeros(2*n_m)
     # per trial run all time steps
     for i in steps:
-        #print('Time step:',i*h,'s')
         # set window boundary
         delta_N = steps_window
         if i-delta_N<0:
@@ -237,14 +205,14 @@ for t in range(3):
                 break
         
         # estimate B_hat using agency mu and pi
-        B_hat[i,:,t] = r_i[i,:,0,t]*mu[0]
+        B_hat[i,:,t] = pi[[0],:]*mu[0]
         
         # save mean at each time step as b value of agency and no-agency (env)
         agency[i,t] = mu[0]
         env[i,t] = mu[1]
-                    t_agency_1trial += h*pi[0,:]
+        t_agency_1trial += h*pi[0,:]
 
-                        print('Time agency after trial',t,':',t_agency_1trial)
+    print('Time agency after trial',t,':',t_agency_1trial)
 
 # save data for comparison of prior and no_prior case
 B_hat_mean = np.mean(B_hat,axis=(0,2))
@@ -253,29 +221,26 @@ np.savetxt(folder+'em_B_hat_static.txt',B_hat.reshape(-1,B_hat.shape[2]))
 np.savetxt(folder+'data_em_static.txt',(B_hat_mean,B_hat_var))
 
 #--PRINT: some values for comparison
-print('\nThe responsibility, r_i:')
-print(r_i[i,:,0,t])
-
 print('\nTHE MU OF:')
 print('\tthe agency cluster:', np.mean(agency))
 print('\tthe no-agency cluster:', np.mean(env))
 
 print('\nTHE MEAN OF:')
 print('\tEM B_hat:', np.mean(B_hat,axis=(0,2)))
-#print('\tOLS B_hat:', np.mean(ols_B_hat,axis=(0,2)))
+print('\tOLS B_hat:', np.mean(ols_B_hat,axis=(0,2)))
 print('\tincremental B is:', np.mean(B_i,axis=(0,2)))
 
 print('\nTHE VARIANCE OF:')
 print('\tthe mu of the agency cluster:', np.var(agency))
 print('\tthe mu of the no-agency cluster:', np.var(env))
 print('\tEM B_hat:', np.var(B_hat,axis=(0,2)))
-#print('\tOLS B_hat:', np.var(ols_B_hat,axis=(0,2)))
+print('\tOLS B_hat:', np.var(ols_B_hat,axis=(0,2)))
 print('\tincremental B is:', np.var(B_i,axis=(0,2)))
 
 print('\nFinal mean of the agency is:', mu[0], 'and of the no-agency is', mu[1])
 print('Final std of the agency is:', sigma[0], 'and of the no-agency is', sigma[1])
 print('Final mixture (pi) of the agency is:', pi[0], 'and of the no-agency is', pi[1])
-#aprint('Final mean of OLS B_hat mass m_1 is:', ols_B_hat[-1,1,t])
+print('Final mean of OLS B_hat mass m_1 is:', ols_B_hat[-1,1,t])
 
 #--FIGURE SETTINGS
 SMALL_SIZE = 14
@@ -300,10 +265,10 @@ N2_fin = (np.sum(pi[1,:])/6) * stats.norm(loc=mu[1],scale=sigma[1]).pdf(data_ran
 fig1 = plt.figure(1)
 fig1.suptitle('Histogram of $\mathbf{X}_B$ for trial %s where \n $F_{int}=$%s, $F_{ext,1}=$%s, and $F_{ext,2}=$%s'%(trial, mass1.u_name,mass2.u_name,mass3.u_name))
 plt.hist(B_i[-delta_N:,:,trial].flatten(),density=True,bins=100,label=['$b_{ij}$'])#,'$b_{i2}$','$b_{i3}$','$b_{i4}$','$b_{i5}$','$b_{i6}$'])
-#plt.plot(data_range,N1_init,color='C1',label='$f(b_{ij} \mid \mu_{0}, \sigma_{0}^{2})$ at $t=0$ s',linewidth=3,ls='--')
-#plt.plot(data_range,N2_init,color='C3',label='$f(b_{ij} \mid \mu_{1}, \sigma_{1}^{2})$ at $t=0$ s',linewidth=3,ls='--')
-#plt.plot(data_range,N1_fin,color='C1',label='$f(b_{ij} \mid \mu_{0}, \sigma_{0}^{2})$ at $t=20$ s',linewidth=3)
-#plt.plot(data_range,N2_fin,color='C3',label='$f(b_{ij} \mid \mu_{1}, \sigma_{1}^{2})$ at $t=20$ s',linewidth=3)
+plt.plot(data_range,N1_init,color='C1',label='$f(b_{ij} \mid \mu_{0}, \sigma_{0}^{2})$ at $t=0$ s',linewidth=3,ls='--')
+plt.plot(data_range,N2_init,color='C3',label='$f(b_{ij} \mid \mu_{1}, \sigma_{1}^{2})$ at $t=0$ s',linewidth=3,ls='--')
+plt.plot(data_range,N1_fin,color='C1',label='$f(b_{ij} \mid \mu_{0}, \sigma_{0}^{2})$ at $t=20$ s',linewidth=3)
+plt.plot(data_range,N2_fin,color='C3',label='$f(b_{ij} \mid \mu_{1}, \sigma_{1}^{2})$ at $t=20$ s',linewidth=3)
 plt.ylabel('Frequency of $b_{ij}$')
 plt.xlabel('$b_{ij}$')
 plt.legend(loc='upper center')
@@ -352,4 +317,4 @@ for i in range(0,n_m):
     box = ax1.get_position()
     ax1.set_position([box.x0-box.width * 0.07, box.y0, box.width * 0.9, box.height]) # move box to left by 5% and shrink current axis by 10% (i.e. center box)
     ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))        # put a legend to the right of the current axis
-plt.show()
+#plt.show()

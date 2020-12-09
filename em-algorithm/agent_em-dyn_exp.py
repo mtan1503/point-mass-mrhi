@@ -23,7 +23,7 @@ def e_step(pi_k, mu_k, cov_k, x_i):
     
     # find the marginal likelihood P(x_i), dim: n
     r_evidence = (np.sum(pi_k * N_k,axis=0))
-
+    
     # find the posterior P(k|xi) or responsibility, dim:Kxn
     r_ik = [(pi_k[k,:] * N_k[k,:]) / r_evidence for k in range(mu_k.shape[0])]
     r_ik = np.array(r_ik)
@@ -59,56 +59,56 @@ def m_step(r_ik, x, i_agent, i_env):
     cov_k = [np.dot((r_ik[[k],:].T*(x - mu_k[k,:])).T, (x - mu_k[k,:])) / Nk[k] for k in range(r_ik.shape[0])]
     cov_k = np.array(cov_k)
     cov_k = cov_k + 1e-5*np.identity(len(x[0]))
-
+    
     return mu_k, cov_k, pi_k
 
 def log_likelihood(pi_k, mu_k, cov_k, x):
     '''The log-likelihood'''
     '''
-    # calculate the likelihood for entire time window
-    N_k = np.zeros((x.shape[1],mu_k.shape[0],x.shape[0]))   # dim: n x K x N
-    L_k = np.zeros((x.shape[1],x.shape[0]))                 # dim: n x N
-    for j in range(x.shape[1]):
+        # calculate the likelihood for entire time window
+        N_k = np.zeros((x.shape[1],mu_k.shape[0],x.shape[0]))   # dim: n x K x N
+        L_k = np.zeros((x.shape[1],x.shape[0]))                 # dim: n x N
+        for j in range(x.shape[1]):
         for k in range(mu_k.shape[0]):
-            N_k[j,k,:] = stats.multivariate_normal.pdf(x[:,j],mean=mu_k[k,:],cov=cov_k[k,:])
+        N_k[j,k,:] = stats.multivariate_normal.pdf(x[:,j],mean=mu_k[k,:],cov=cov_k[k,:])
         L_k[j,:] = np.dot(pi_k[:,[j]].T,N_k[j,:,:])
-    if np.any(N_k==0): N_k[np.where(N_k==0)]=1e-6
-    
-    # calculate the log-likelihood
-    L_tot = np.sum(np.log(L_k))
-    '''
+        if np.any(N_k==0): N_k[np.where(N_k==0)]=1e-6
+        
+        # calculate the log-likelihood
+        L_tot = np.sum(np.log(L_k))
+        '''
     # calculate the likelihood for one data point
     N_k = np.zeros(shape=(mu_k.shape[0],x.shape[0]))
     for k in range(mu_k.shape[0]):
         N_k[k,:] = stats.multivariate_normal.pdf(x,mean=mu_k[k,:],cov=cov_k[k,:])
-    
+
     # calculate the log-likelihood
     L_tot = np.sum(np.log(np.sum(pi_k * N_k,axis=0)))
 
-    return L_tot
+return L_tot
 
 #--import variables from variables scripts:
 ''' Parameters for each mass:
-        x0                  - initial conditions for Euler integration of x
-        n_m                 - number of mass
-        experiment_number   - number of the performed experiment (1A,1B,etc.)
-        state space system (i.e. dx = Ax+Bu+w, y = Cx+z)
-            self.A      - state matrix
-            self.B      - input matrix
-            self.C      - output matrix
-            self.u      - input sequence (applied force)
-            self.w      - state noise
-            self.z      - measurement noise
+    x0                  - initial conditions for Euler integration of x
+    n_m                 - number of mass
+    experiment_number   - number of the performed experiment (1A,1B,etc.)
+    state space system (i.e. dx = Ax+Bu+w, y = Cx+z)
+    self.A      - state matrix
+    self.B      - input matrix
+    self.C      - output matrix
+    self.u      - input sequence (applied force)
+    self.w      - state noise
+    self.z      - measurement noise
     '''
 from mass_param import n_m,experiment_number,mass1,mass2,mass3
 ''' Time parameters:
-        trials      - number of trials of the experiment
-        h           - [s] the sampling period
-        T           - [s] total time
-        N           - [] total number of simulation steps
-        t_p         - [s] time points
-        delta_N     - [] number of steps for time window
-        steps       - [] range of simulation steps
+    trials      - number of trials of the experiment
+    h           - [s] the sampling period
+    T           - [s] total time
+    N           - [] total number of simulation steps
+    t_p         - [s] time points
+    delta_N     - [] number of steps for time window
+    steps       - [] range of simulation steps
     '''
 from time_param import trials,h,T,N,t_p,delta_N,steps,N_t
 
@@ -229,7 +229,7 @@ for c in range(n_c):
             delta_N = steps_window
             if i-delta_N<0:
                 delta_N = i
-
+        
             # determine prediction error for states and observations
             eps_dx[i,:,t,c] = (np.abs(dx_hat[i-delta_N:i+1,:,t]-dx[i-delta_N:i+1,:,t])).mean(axis=0)
             #eps_y[i,:,t] = (np.abs(y_hat[i-delta_N:i+1,:,t]-y[i-delta_N:i+1,:,t])).mean(axis=0)
@@ -237,10 +237,10 @@ for c in range(n_c):
             # save the data at this time step in data (i.e. X)
             data[i,:,0] = B_i[i,:,t]
             data[i,:,1] = eps_dx[i,:,t,c]
-
+            
             # calculate the log-likelihood
             ll_new = log_likelihood(pi, mu, cov, data[i,:,:])
-
+            
             # run EM until convergence or max number of iterations
             for j in range(max_iter):
                 ll_old = ll_new
@@ -249,7 +249,7 @@ for c in range(n_c):
                 r_i[:,i,:,t] = e_step(pi, mu, cov, data[i,:,:])
                 # M: maximization step
                 mu, cov_temp, pi = m_step(r_i[:,i-delta_N:i+1,:,t], data[i-delta_N:i+1,:,:],i_agent,i_env)
-
+                
                 # calculate the covariance and mixtures when there are enough data points (enforce initial conditions for some time steps)
                 if i>10: cov = cov_temp
                 
@@ -279,15 +279,15 @@ for c in range(n_c):
                 i_agent = i_agent[0]
                 i_env = i_k[~mask]        # no-agency clusters are opposite of agency cluster
 
-            # agency parameter, B_hat, with mu and r_i for x_hat and dx_hat
-            B_hat[i,:,t,c] = np.dot(pi[[i_agent],:].T,mu[i_agent,[0]])
-
-            # prediction of next step with forward euler (except for last loop)
-            if i!=(N-1):
-                Bd = h*B_hat[i,:,t,c]
-                x_hat[i+1,:,t] = Ad.dot(x[i,:,t]) + Bd*mass1.u[i,0]
-                dx_hat[i+1,:,t] = A.dot(x_hat[i+1,:,t]) + B_hat[i,:,t,c].dot(mass1.u[i+1,0])
-
+    # agency parameter, B_hat, with mu and r_i for x_hat and dx_hat
+    B_hat[i,:,t,c] = np.dot(pi[[i_agent],:].T,mu[i_agent,[0]])
+        
+        # prediction of next step with forward euler (except for last loop)
+        if i!=(N-1):
+            Bd = h*B_hat[i,:,t,c]
+            x_hat[i+1,:,t] = Ad.dot(x[i,:,t]) + Bd*mass1.u[i,0]
+            dx_hat[i+1,:,t] = A.dot(x_hat[i+1,:,t]) + B_hat[i,:,t,c].dot(mass1.u[i+1,0])
+            
             # store the agency data for each time step
             t_agency += h*pi[i_agent,:]
             t_agent_1trial += h*pi[i_agent,:]

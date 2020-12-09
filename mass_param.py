@@ -8,9 +8,9 @@ from scipy.linalg import toeplitz
 class Mass_Spring_Damper:
     """ Specify the parameters of a mass-spring-damper system in state space form, i.e. dx = Ax + Bu + w and y = Cx + z.
         Input parameters:
-            m - mass in kg
-            k - spring constant in N/m
-            c - damping constant in Ns/m
+        m - mass in kg
+        k - spring constant in N/m
+        c - damping constant in Ns/m
         """
     
     def __init__(self, mass, spring, damper):
@@ -37,9 +37,9 @@ class Mass_Spring_Damper:
         Pw = np.diag(1./varw)
         Pz = np.diag(1./varz)
         '''
-        self.w = np.sqrt(np.linalg.inv(Pw)).dot(np.random.randn(n,N)).dot(K)
-        self.z = np.sqrt(np.linalg.inv(Pz)).dot(np.random.randn(q,N)).dot(K)
-        '''
+            self.w = np.sqrt(np.linalg.inv(Pw)).dot(np.random.randn(n,N)).dot(K)
+            self.z = np.sqrt(np.linalg.inv(Pz)).dot(np.random.randn(q,N)).dot(K)
+            '''
         w = np.zeros((n,N,trials))
         z = np.zeros((q,N,trials))
         for i in range(trials):
@@ -50,25 +50,25 @@ class Mass_Spring_Damper:
 
 '''
     def make_random_noise(self,std,N_t):
-        self.w = np.random.normal(0,std,(2,N))    # random noise with 0 mean and x std
-'''
+    self.w = np.random.normal(0,std,(2,N))    # random noise with 0 mean and x std
+    '''
 
 '''Time parameters
-        trials      - number of trials of the experiment
-        h           - [s] the sampling period
-        T           - [s] total time
-        N           - [] total number of simulation steps
-        t_p         - [s] time points
-        delta_N     - [] number of steps for time window
-        steps       - [] range of simulation steps
+    trials      - number of trials of the experiment
+    h           - [s] the sampling period
+    T           - [s] total time
+    N           - [] total number of simulation steps
+    t_p         - [s] time points
+    delta_N     - [] number of steps for time window
+    steps       - [] range of simulation steps
     '''
 from time_param import trials,h,T,N,t_p,delta_N,steps
 '''Noise parameters
-        varz        - variance in states
-        varw        - variance in outputs
-        varw_noise  - noisy variance in states
-        s           - correlation kernel variance
-        std         - gray noise standard deviation
+    varz        - variance in states
+    varw        - variance in outputs
+    varw_noise  - noisy variance in states
+    s           - correlation kernel variance
+    std         - gray noise standard deviation
     '''
 from noise_param import varz,varw,varw_noise,s
 
@@ -94,7 +94,7 @@ while True:
             mass2.make_colored_noise(varz,varw,s,t_p,trials)
             mass3.make_colored_noise(varz,varw,s,t_p,trials)
             break
-    
+        
         elif experiment_number=='1B':
             # experiment 1B
             mass1 = Mass_Spring_Damper(2.5, 6, 2)
@@ -122,7 +122,7 @@ while True:
             mass2.make_colored_noise(varz,varw,s,t_p,trials)
             mass3.make_colored_noise(varz,varw,s,t_p,trials)
             break
-                
+        
         # EXPERIMENT 2: PARAMETERS FOR INCORRECT CONCLUSION
         elif experiment_number=='2A':
             # experiment 2A
@@ -153,7 +153,7 @@ while True:
             break
         
         elif experiment_number=='2C':
-            # experiment 2B
+            # experiment 2C
             mass1 = Mass_Spring_Damper(2.5, 6, 2)
             mass2 = Mass_Spring_Damper(2.5, 6, 2)
             mass3 = Mass_Spring_Damper(2, 4, 4)
@@ -165,15 +165,15 @@ while True:
             mass2.make_colored_noise(varz,varw,s,t_p,trials)
             mass3.make_colored_noise(varz,varw,s,t_p,trials)
             break
-                
+
     except ValueError:
         print("Error!")
 '''
-w_n = np.sqrt(mass1.k/mass1.m)
-w_a = 4
-d_r = mass1.c/(2*np.sqrt(mass1.m*mass1.k))
-print('For mass m1')
-print('Natural frequency:',w_n)
-print('Input frequency:',w_a)
-print('Damping ratio:',d_r)
-'''
+    w_n = np.sqrt(mass1.k/mass1.m)
+    w_a = 4
+    d_r = mass1.c/(2*np.sqrt(mass1.m*mass1.k))
+    print('For mass m1')
+    print('Natural frequency:',w_n)
+    print('Input frequency:',w_a)
+    print('Damping ratio:',d_r)
+    '''

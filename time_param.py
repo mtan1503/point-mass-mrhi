@@ -4,7 +4,7 @@
     '''
 import numpy as np
 
-trials = 1000                   # number of trials of the experiment
+trials = 10                   # number of trials of the experiment
 h = 0.01                        # [s] the sampling period
 T = 20                          # [s] total time
 N_t = int(round(T/h))           # [] total number of simulation steps

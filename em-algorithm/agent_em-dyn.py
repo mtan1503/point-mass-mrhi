@@ -488,8 +488,8 @@ for i in range(0,n_k):
     lines.append(CS[i].collections[-1])
 plt.xlabel('$b_{ij}$')
 plt.ylabel('$\epsilon_{\dot{x}_{ij}}$')
-plt.xlim(np.min(data[N_t-delta_N:N_t,:,0])-0.2,np.max(data[N_t-delta_N:N_t,:,0])+0.05)
-plt.ylim(np.min(data[N_t-delta_N:N_t,:,1])-0.1,np.max(data[N_t-delta_N:N_t,:,1])+0.5)
+plt.xlim(np.min(data[N_t-delta_N:N_t,:,0])-0.2, np.max(data[N_t-delta_N:N_t,:,0])+0.05)
+plt.ylim(np.min(data[N_t-delta_N:N_t,:,1])-0.1, np.max(data[N_t-delta_N:N_t,:,1])+0.5)
 box = ax.get_position()
 ax.set_position([box.x0, box.y0 + box.height * 0.2,
                  box.width, box.height * 0.8])    # set box pos.

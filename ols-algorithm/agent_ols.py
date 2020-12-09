@@ -158,7 +158,7 @@ x_hat[0,:,:] = x0
 dx_hat[0,:,:] = A.dot(x_hat[0,:,:]) + B_obs[0,:,:].dot(mass1.u[0,0])
 
 # adjustable parameters
-prior = True
+prior = False
 if prior is False: save_prior = '_noprior'
 else: save_prior = ''
 steps_window = delta_N      # the time window of estimation of B with OLS

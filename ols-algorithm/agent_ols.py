@@ -22,7 +22,6 @@ def force_input(experiment_number):
     if experiment_number=='1A':
         mass2 = Mass_Spring_Damper(np.zeros(N), '0')
         mass3 = Mass_Spring_Damper(np.zeros(N), '0')
-    
     elif experiment_number=='1B':
         # experiment 1B
         mass2 = Mass_Spring_Damper(2*np.cos(4*t_p+3)+3,'$2cos(4t_p+3)+3$')
@@ -76,7 +75,7 @@ def polylsq_B(y, X):
 from time_param import trials,h,T,N,t_p,delta_N,steps
 
 n_m = 3
-print('Choose the parameters of the state-space, where experiment 1 makes a data that should lead to correct conclusions and experiment 2 makes a data that should lead to incorrect conclusions.')
+print('Choose the experiment number, where experiment 1 is the unambiguous environment and experiment 2 is the ambiguous environment.')
 while True:
     try:
         experiment_number = input("Enter the number of the experiment (1A, 1B, 1C, 2A, 2B or 2C) and press enter:")
@@ -87,31 +86,10 @@ while True:
 
 if experiment_number=='1A' or experiment_number=='1B' or experiment_number=='1C':
     folder_figures = 'correct-conclusions/figures_ols/'
-    while True:
-        try:
-            test_type = input("Enter the type of test you want to run 'full' or 'test':")
-            if test_type== 'full':
-                folder = 'correct-conclusions/exp_'
-                break
-            elif test_type== 'test':
-                trials = 10
-                folder = 'test_data/exp_'
-                break
-        except ValueError: print("Error!")
+    folder = 'correct-conclusions/exp_'
 elif experiment_number=='2A' or experiment_number=='2B' or experiment_number=='2C':
     folder_figures = 'incorrect-conclusions/figures_ols/'
-    while True:
-        try:
-            test_type = input("Enter the type of test you want to run 'full' or 'test':")
-            if test_type== 'full':
-                folder = 'incorrect-conclusions/exp_'
-                break
-            elif test_type== 'test':
-                trials = 10
-                folder = 'test_data/exp_'
-                break
-        except ValueError: print("Error!")
-
+    folder = 'incorrect-conclusions/exp_'
 folder += experiment_number+'/'
 print('\nGetting data from folder:', folder)
 
@@ -131,15 +109,12 @@ u_p = np.loadtxt(folder+'u_plant.txt')[...,np.newaxis]
 B_i = np.loadtxt(folder+'B_i.txt').reshape(N, 2*n_m, trials)
 
 # initialize matrices
-y_hat = np.zeros(shape=y.shape)
 dx_hat = np.zeros(shape=dx.shape)
-dx_obshat = np.zeros(shape=dx.shape)
 x_hat = np.zeros(shape=x.shape)
 B_hat = np.zeros(shape=dx.shape)
 B_obs = np.zeros(shape=dx.shape)
 eps_dx = np.zeros(shape=dx.shape)
-eps_y = np.zeros(shape=y.shape)
-i_agent = np.arange(6)
+j_agency = np.arange(6)
 
 #-- B at each time step using incremental polynomial OLS within a time window
 # pre-calculation y of matrix formula for polynomial regression as y=dx-Ax, a=B, X=u
@@ -158,9 +133,22 @@ x_hat[0,:,:] = x0
 dx_hat[0,:,:] = A.dot(x_hat[0,:,:]) + B_obs[0,:,:].dot(mass1.u[0,0])
 
 # adjustable parameters
-prior = False
-if prior is False: save_prior = '_noprior'
-else: save_prior = ''
+while True:
+    try:
+        prior = input("Do you want to add the prior (y/n)?")
+        if prior=='y':
+            prior=True
+            save_prior = ''
+            break
+        elif prior=='n':
+            prior=False
+            save_prior = '_noprior'
+            break
+
+    except ValueError:
+        print("Error!")
+
+
 steps_window = delta_N      # the time window of estimation of B with OLS
 
 # collect data
@@ -182,8 +170,6 @@ for t in range(trials):
         #--Error, epsilon
         # calculate the average absolute error over the time window for each dx
         eps_dx[i,:,t] = (np.abs(dx_hat[i-delta_N:i+1,:,t]-dx[i-delta_N:i+1,:,t])).mean(axis=0)
-        #eps_dx[i,:,t] = (np.abs(dx_hat[i-delta_N:i+1,i_agent,t]-dx[i-delta_N:i+1,:,t])).mean(axis=0)
-        eps_y[i,:,t] = (np.abs(y_hat[i-delta_N:i+1,:,t]-y[i-delta_N:i+1,:,t])).mean(axis=0)
         
         #--Matrix formula for OLS
         # choose y and d within the time window
@@ -198,49 +184,47 @@ for t in range(trials):
         
         #--Apply the priors if set to true
         # prep
-        i_states = np.arange(0,2*n_m)               # range of all possible states
-        mask = np.ones(len(i_states), dtype=bool)   # boolean mask
-        
-        
+        j = np.arange(0,2*n_m)               # range of all possible states
+        mask = np.ones(len(j), dtype=bool)   # boolean mask
+
         if prior==True and i>0:
             #--Determine if the agent has agency or not
             # SoA requires causality
-            i_env = np.where(B_hat[i,:,t]<0.1)[0]      # all options are not the agent
-            mask[i_env] = False                         # set no agency states to false
-            i_agent = i_states[mask]                    # select the state that is left
+            j_env = np.where(B_hat[i,:,t]<0.1)[0]       # all options are not the agent
+            mask[j_env] = False                         # set no agency states to false
+            j_agency = j[mask]                    # select the state that is left
             
             # if there are more than one agency options for the agent
-            if len(i_agent)>1:
+            if len(j_agency)>1:
                 # then the agent is the one which is best estimated by dx
-                i_agent = i_agent[np.where(eps_dx[i,i_agent,t] == eps_dx[i,i_agent,t].min())]
+                j_agency = j_agency[np.where(eps_dx[i,j_agency,t] == eps_dx[i,j_agency,t].min())]
                 # the environment is the rest
-                mask = np.ones(len(i_states), dtype=bool)   # boolean mask
-                mask[i_agent] = False                       # set agency states to false
-                i_env = i_states[mask]                      # select the state that is left
+                mask = np.ones(len(j), dtype=bool)   # boolean mask
+                mask[j_agency] = False                       # set agency states to false
+                j_env = j[mask]                      # select the state that is left
             
             # set the no agency options to 0 (prior)
-            B_hat[i,i_env,t] = 0
+            B_hat[i,j_env,t] = 0
 
-                else:
-                    i_env = np.where(abs(B_hat[i,:,t])<0.005)[0]    # all options are not the agent
-                    mask[i_env] = False                         # set no agency states to false
-                    i_agent = i_states[mask]                    # select the state that is left
-                        
-                        # count time for agency and no-agency and add error
-                        t_agent[i_agent] += h
-                        t_env[i_env] += h
-                        if len(i_agent)>0:
-                            cum_error += np.sum(np.abs(eps_dx[i,i_agent,t]))
-                                t_agent_1trial[i_agent] += h
-
-                                # prediction of next step with forward euler (except for last loop)
-                                if i!=(N-1):
-                                    Bd = h*B_hat[i,:,t]
-                                    x_hat[i+1,:,t] = Ad.dot(x[i,:,t]) + Bd*mass1.u[i,0]
-                                    y_hat[i+1,:,t] = C.dot(x_hat[i+1,:,t])
-                                    dx_hat[i+1,:,t] = A.dot(x_hat[i+1,:,t]) + B_hat[i,:,t].dot(mass1.u[i+1,0])
-                                        
-                                        print('Time agent after trial',t,':',t_agent_1trial)
+        else:
+            j_agency = np.where(abs(B_hat[i,:,t])>0.005)[0]    # all options are not the agent
+            mask[j_agency] = False                         # set no agency states to false
+            j_env = j[mask]                    # select the state that is left
+        
+        # count time for agency and no-agency and add error
+        t_agent[j_agency] += h
+        t_env[j_env] += h
+        if len(j_agency)>0:
+            cum_error += np.sum(np.abs(eps_dx[i,j_agency,t]))
+            t_agent_1trial[j_agency] += h
+        
+        # prediction of next step with forward euler (except for last loop)
+        if i!=(N-1):
+            Bd = h*B_hat[i,:,t]
+            x_hat[i+1,:,t] = Ad.dot(x[i,:,t]) + Bd*mass1.u[i,0]
+            dx_hat[i+1,:,t] = A.dot(x_hat[i+1,:,t]) + B_hat[i,:,t].dot(mass1.u[i+1,0])
+        
+    print('Time agent after trial',t,':',t_agent_1trial)
 
 
 
@@ -255,7 +239,7 @@ if prior == True:
     np.savetxt(folder+'data_ols_'+experiment_number+'.txt',(B_hat_mean,eps_dx_mean,B_hat_var,eps_dx_var,t_agent))
 else:
     np.savetxt(folder+'B_hat_ols_noprior.txt', B_hat.reshape(-1,B_hat.shape[2]))
-    np.savetxt(folder+'data_ols_'+experiment_number+'_noprior.txt',(B_hat_mean,eps_dx_mean,B_hat_var,eps_dx_var))
+    np.savetxt(folder+'data_ols_'+experiment_number+'_noprior.txt',(B_hat_mean,eps_dx_mean,B_hat_var,eps_dx_var,t_agent))
 
 print('\nThis is experiment number:',experiment_number, 'and the prior is',prior)
 
@@ -264,7 +248,6 @@ print('\tleast-squares:',B_hat_mean)
 print('\tincremental:',np.mean(B_i,axis=(0,2)))
 
 print('\nMEAN ERROR:')
-print('\tsensory (y) prediction error:',np.mean(eps_y,axis=(0,2)))
 print('\tmotion (dx) prediction error:',eps_dx_mean)
 
 print('\nVARIANCE MATRIX')
@@ -294,10 +277,6 @@ print('\tincremental b_2:',np.var(B_i[:,1,:]))
 u_name = [mass1.u_name,mass2.u_name,mass3.u_name]
 trial_nr = 3
 color_b = ['C1','C0','C7','C3','C4','C5']
-if prior==False:
-    prior='without'
-elif prior==True:
-    prior='with'
 
 # font settings
 SMALL_SIZE = 14
@@ -311,36 +290,11 @@ plt.rc('axes', labelsize=SMALL_SIZE)    # fontsize of the x and y labels
 plt.rc('legend', fontsize=MEDIUM_SIZE)  # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE) # fontsize of the figure title
 
-#--FIGURE 1: compare real solution of y calculated from OLS B
-fig1 = plt.figure(1, figsize=(11, 7))
-plt.subplots_adjust(hspace=0.55,top=0.9,left=0.15,right=0.85) # spacing
-fig1.suptitle('Sensory observations ($\mathbf{y}$) over time for trial %s %s prior' %(trial_nr,prior))
-for i in range(n_m):
-    # mass 1: compare real solution of dx (without noise) to dx calculated from OLS B
-    ax1 = plt.subplot(3,1,i+1)
-    plt.title('Mass $m_%s$ with force input %s'%(i+1,u_name[i]), y=0.98)
-    plt.ylabel('$y$')
-    plt.xlabel('Time /s')
-    plt.grid()
-    
-    # plot numerical solution for y (without noise)
-    ax1.scatter(t_p, y[:,i,trial_nr],s=1,label='Observed pos. ($y_%s$)'%(2*i))
-    # plot new y calculated from prior
-    ax1.scatter(t_p, y_hat[:,i,trial_nr],s=3,label='Predicted pos. (${\haty}_%s$)'%(2*i))
-    # plot error of sum of y per mass
-    ax1.plot(t_p, eps_y[:,i,trial_nr],'--',color='k',label='$\epsilon_{{\mathbf{y}}_{m_%s}}$'%(i+1))
-    
-    # Position legend
-    box = ax1.get_position()
-    ax1.set_position([box.x0-box.width * 0.07, box.y0, box.width * 0.9, box.height]) # move box to left by 5% and shrink current axis by 10% (i.e. center box)
-    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))        # put a legend to the right of the current axis
-fig1.set_rasterized(True)
-plt.savefig(folder_figures+'exp'+experiment_number+'_agent_y'+save_prior+'.eps', format='eps')
 
 #--FIGURE 2: Plot the B
-fig2 = plt.figure(2, figsize=(7.5, 5))
+fig1 = plt.figure(1, figsize=(7.5, 5))
 plt.subplots_adjust(hspace=1.25,top=0.85,left=0.19,right=0.90) # spacing
-fig2.suptitle('$\mathbf{\hat B}$ over time for trial %s %s prior' %(trial_nr,prior))
+fig1.suptitle('$\mathbf{\hat B}$ over time for trial %s %s prior' %(trial_nr,prior))
 for i in range(n_m):
     ax1 = plt.subplot(3,1,i+1)
     plt.title('Mass $m_%s$ with force input %s' %((i+1),u_name[i]), y=0.98)
@@ -359,14 +313,12 @@ for i in range(n_m):
     # Position legend
     box = ax1.get_position()
     ax1.set_position([box.x0-box.width * 0.07, box.y0, box.width * 0.9, box.height]) # move box to left by 5% and shrink current axis by 10% (i.e. center box)
-    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))        # put a legend to the right of the current axis
-fig2.set_rasterized(True)
-plt.savefig(folder_figures+'exp'+experiment_number+'_agent_b'+save_prior+'.eps', format='eps')
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),markerscale=2)        # put a legend to the right of the current axis
 
-#--FIGURE 3: plot dx (discretized)
-fig3 = plt.figure(3, figsize=(11, 7))
+#--FIGURE 2: plot dx (discretized)
+fig2 = plt.figure(2, figsize=(11, 7))
 plt.subplots_adjust(hspace=0.60,top=0.90,left=0.15,right=0.85) # spacing
-fig3.suptitle('$\mathbf{\dot{x}}$ over time for trial %s %s prior' %(trial_nr,prior))
+fig2.suptitle('$\mathbf{\dot{x}}$ over time for trial %s %s prior' %(trial_nr,prior))
 for i in range(n_m):
     # mass 1: compare real solution of dx (without noise) to dx calculated from OLS B
     ax1 = plt.subplot(3,1,i+1)
@@ -387,41 +339,20 @@ for i in range(n_m):
     # Position legend
     box = ax1.get_position()
     ax1.set_position([box.x0-box.width * 0.07, box.y0, box.width * 0.9, box.height]) # move box to left by 5% and shrink current axis by 10% (i.e. center box)
-    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))        # put a legend to the right of the current axis
-fig3.set_rasterized(True)
-plt.savefig(folder_figures+'exp'+experiment_number+'_agent_dx'+save_prior+'.eps', format='eps')
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5),markerscale=2)        # put a legend to the right of the current axis
 
-'''
-    #--FIGURE 4: plot dx error vs lsq B
-    fig4 = plt.figure(4)
-    plt.subplots_adjust(top=0.90,right=0.95,bottom=0.12) # spacing
-    fig4.suptitle('OLS estimatation of $\hat{b}_{ij}$ vs. the prediction error $\epsilon_{\dot{x}_{ij}}$')
-    plt.grid()
-    for i in range(6):
-    plt.ylabel('$\epsilon_{\dot{x}_{ij}}$')
-    plt.xlabel('OLS $\hat{b}_{ij}$')
-    plt.grid()
-    
-    # plot lsqB vs error in dx
-    plt.scatter(B_hat[:,i,:], eps_dx[:,i], label='$j=%s$'%(i+1), s=3)
-    plt.legend()
-    fig4.set_rasterized(True)
-    plt.savefig(folder_figures+'exp'+experiment_number+'_scatter_bhat_error'+save_prior+'.eps', format='eps')
-    
-    #--FIGURE 5: plot dx error vs lsq B
-    fig5 = plt.figure(5)
-    plt.subplots_adjust(top=0.90,right=0.95,bottom=0.12) # spacing
-    fig5.suptitle('Observed ${b}_{ij}$ vs. the prediction error $\epsilon_{\dot{x}_{ij}}$')
-    plt.grid()
-    for i in range(6):
-    plt.ylabel('$\epsilon_{\dot{x}_{ij}}$')
-    plt.xlabel('${b}_{ij}$')
-    plt.grid()
-    
-    # plot lsqB vs error in dx
-    plt.scatter(B_i[:,i], eps_dx[:,i], label='$j=%s$'%(i+1), s=3)
-    plt.legend()
-    fig5.set_rasterized(True)
-    plt.savefig(folder_figures+'exp'+experiment_number+'_scatter_b_error'+save_prior+'.eps', format='eps')
-    '''
+
+#--FIGURE 3: plot b_2 over time
+fig3, ax1 = plt.subplots(figsize=(7.5, 5))
+plt.subplots_adjust(top=0.9,bottom=0.15,left=0.15,right=0.95) # spacing
+fig3.suptitle('Agency parameter $\hat{b}_1$ over time for trial %s' %(trial_nr))
+plt.xlabel('Time /s')
+plt.ylabel('$b_1$')
+plt.grid(alpha=0.5)
+# plot real b_1 values
+plt.axhline(B_a[1], color='k', linestyle=':', label='$b_{1}$ (true)')
+# plot OLS B_hat
+plt.scatter(t_p, B_hat[:,1,trial_nr], s=20, marker='+',color=color_b[0], label='$\hatb_{1}$ (OLS %s prior)'%prior)
+plt.legend()
+
 #plt.show() # uncomment if you want the plot to show
